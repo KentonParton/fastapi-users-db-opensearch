@@ -1,0 +1,171 @@
+from typing import AsyncGenerator
+from fastapi_users_db_opensearch import OpenSearchUserDatabase
+from tests.conftest import UserDB, UserDBOAuth
+from opensearchpy import AsyncOpenSearch
+import pytest
+
+
+@pytest.fixture(scope="module")
+async def opensearchdb_client():
+    yield AsyncOpenSearch(
+        hosts=[{'host': "localhost", 'port': "9200"}],
+        http_auth=("admin", "admin"),
+        use_ssl=True,
+        verify_certs=False,
+        ssl_assert_hostname=False,
+        ssl_show_warn=False,
+    )
+
+
+async def create_indices(opensearchdb_client: AsyncOpenSearch):
+    user_index = "user"
+    oauth_account_index = "oauth_account"
+
+    if not await opensearchdb_client.indices.exists(user_index):
+        await opensearchdb_client.indices.create(user_index)
+    if not await opensearchdb_client.indices.exists(oauth_account_index):
+        await opensearchdb_client.indices.create(oauth_account_index)
+
+
+async def delete_indices(opensearchdb_client: AsyncOpenSearch):
+    user_index = "user"
+    oauth_account_index = "oauth_account"
+
+    if await opensearchdb_client.indices.exists(user_index):
+        await opensearchdb_client.indices.delete(user_index)
+    if await opensearchdb_client.indices.exists(oauth_account_index):
+        await opensearchdb_client.indices.delete(oauth_account_index)
+
+
+@pytest.fixture
+async def opensearch_user_db(opensearchdb_client: AsyncOpenSearch) -> AsyncGenerator[OpenSearchUserDatabase, None]:
+    await create_indices(opensearchdb_client)
+    yield OpenSearchUserDatabase(UserDB, opensearchdb_client)
+    await delete_indices(opensearchdb_client)
+    # await opensearchdb_client.close()
+
+
+@pytest.fixture
+async def opensearch_user_db_oauth(opensearchdb_client: AsyncOpenSearch) -> AsyncGenerator[OpenSearchUserDatabase, None]:
+    await create_indices(opensearchdb_client)
+    yield OpenSearchUserDatabase(UserDBOAuth, opensearchdb_client)
+    await delete_indices(opensearchdb_client)
+
+
+@pytest.mark.asyncio
+@pytest.mark.db
+async def test_queries(opensearch_user_db: OpenSearchUserDatabase[UserDB]):
+    user = UserDB(
+        email="lancelot@camelot.bt",
+        hashed_password="guinevere",
+    )
+
+    # Create
+    user_db = await opensearch_user_db.create(user)
+    assert user_db.id is not None
+    assert user_db.is_active is True
+    assert user_db.is_superuser is False
+    assert user_db.email == user.email
+
+    # Update
+    user_db.is_superuser = True
+    await opensearch_user_db.update(user_db)
+
+    # Get by id
+    id_user = await opensearch_user_db.get(user.id)
+    assert id_user is not None
+    assert id_user.id == user_db.id
+    assert id_user.is_superuser is True
+
+    # Get by email
+    email_user = await opensearch_user_db.get_by_email(str(user.email))
+    assert email_user is not None
+    assert email_user.id == user_db.id
+
+    # Get by uppercased email
+    email_user = await opensearch_user_db.get_by_email("Lancelot@camelot.bt")
+    assert email_user is not None
+    assert email_user.id == user_db.id
+
+    # Exception when inserting existing email
+    with pytest.raises(Exception):
+        await opensearch_user_db.create(user)
+
+    # Exception when inserting non-nullable fields
+    # with pytest.raises():
+    #     # Use construct to bypass Pydantic validation
+    #     wrong_user = UserDB.construct(hashed_password="aaa")
+    #     await opensearch_user_db.create(wrong_user)
+
+    # Unknown user
+    unknown_user = await opensearch_user_db.get_by_email("galahad@camelot.bt")
+    assert unknown_user is None
+
+    # Delete user
+    await opensearch_user_db.delete(user)
+    deleted_user = await opensearch_user_db.get(user.id)
+    assert deleted_user is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.db
+async def test_queries_custom_fields(opensearch_user_db: OpenSearchUserDatabase[UserDB]):
+    """It should output custom fields in query result."""
+    user = UserDB(
+        email="lancelot@camelot.bt",
+        hashed_password="guinevere",
+        first_name="Lancelot",
+    )
+    await opensearch_user_db.create(user)
+
+    id_user = await opensearch_user_db.get(user.id)
+    assert id_user is not None
+    assert id_user.id == user.id
+    assert id_user.first_name == user.first_name
+
+
+@pytest.mark.asyncio
+@pytest.mark.db
+async def test_queries_oauth(
+    opensearch_user_db_oauth: OpenSearchUserDatabase[UserDBOAuth],
+    oauth_account1,
+    oauth_account2,
+):
+    user = UserDBOAuth(
+        email="lancelot@camelot.bt",
+        hashed_password="guinevere",
+        oauth_accounts=[oauth_account1, oauth_account2],
+    )
+
+    # Create
+    user_db = await opensearch_user_db_oauth.create(user)
+    assert user_db.id is not None
+    assert hasattr(user_db, "oauth_accounts")
+    assert len(user_db.oauth_accounts) == 2
+
+    # Update
+    user_db.oauth_accounts[0].access_token = "NEW_TOKEN"
+    await opensearch_user_db_oauth.update(user_db)
+
+    # Get by id
+    id_user = await opensearch_user_db_oauth.get(user.id)
+    assert id_user is not None
+    assert id_user.id == user_db.id
+    assert id_user.oauth_accounts[0].access_token == "NEW_TOKEN"
+
+    # Get by email
+    email_user = await opensearch_user_db_oauth.get_by_email(str(user.email))
+    assert email_user is not None
+    assert email_user.id == user_db.id
+    assert len(email_user.oauth_accounts) == 2
+
+    # Get by OAuth account
+    oauth_user = await opensearch_user_db_oauth.get_by_oauth_account(
+        oauth_account1.oauth_name, oauth_account1.account_id
+    )
+    assert oauth_user is not None
+    assert oauth_user.id == user.id
+
+    # Unknown OAuth account
+    unknown_oauth_user = await opensearch_user_db_oauth.get_by_oauth_account("foo", "bar")
+    assert unknown_oauth_user is None
