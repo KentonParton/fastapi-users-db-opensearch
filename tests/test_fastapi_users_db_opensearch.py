@@ -19,22 +19,27 @@ async def opensearchdb_client():
 
 async def create_indices(opensearchdb_client: AsyncOpenSearch):
     user_index = "user"
-    oauth_account_index = "oauth_account"
 
     if not await opensearchdb_client.indices.exists(user_index):
-        await opensearchdb_client.indices.create(user_index)
-    if not await opensearchdb_client.indices.exists(oauth_account_index):
-        await opensearchdb_client.indices.create(oauth_account_index)
+        await opensearchdb_client.indices.create(
+            index=user_index,
+            body={
+                "mappings": {
+                    "properties": {
+                        "oauth_accounts": {
+                            "type": "nested"
+                        }
+                    }
+                }
+            }
+        )
 
 
 async def delete_indices(opensearchdb_client: AsyncOpenSearch):
     user_index = "user"
-    oauth_account_index = "oauth_account"
 
     if await opensearchdb_client.indices.exists(user_index):
         await opensearchdb_client.indices.delete(user_index)
-    if await opensearchdb_client.indices.exists(oauth_account_index):
-        await opensearchdb_client.indices.delete(oauth_account_index)
 
 
 @pytest.fixture
@@ -92,10 +97,10 @@ async def test_queries(opensearch_user_db: OpenSearchUserDatabase[UserDB]):
         await opensearch_user_db.create(user)
 
     # Exception when inserting non-nullable fields
-    # with pytest.raises():
-    #     # Use construct to bypass Pydantic validation
-    #     wrong_user = UserDB.construct(hashed_password="aaa")
-    #     await opensearch_user_db.create(wrong_user)
+    with pytest.raises(Exception):
+        # Use construct to bypass Pydantic validation
+        wrong_user = UserDB.construct(hashed_password="aaa")
+        await opensearch_user_db.create(wrong_user)
 
     # Unknown user
     unknown_user = await opensearch_user_db.get_by_email("galahad@camelot.bt")
