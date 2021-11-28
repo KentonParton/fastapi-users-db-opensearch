@@ -1,9 +1,8 @@
 """FastAPI Users database adapter for OpenSearch."""
-from typing import Optional, Type, Mapping
+from typing import Optional, Type
 
 import opensearchpy.exceptions
 from opensearchpy import AsyncOpenSearch
-from opensearchpy.helpers import async_bulk
 from pydantic import UUID4
 
 from fastapi_users.db.base import BaseUserDatabase

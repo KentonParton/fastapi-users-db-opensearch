@@ -47,7 +47,6 @@ async def opensearch_user_db(opensearchdb_client: AsyncOpenSearch) -> AsyncGener
     await create_indices(opensearchdb_client)
     yield OpenSearchUserDatabase(UserDB, opensearchdb_client)
     await delete_indices(opensearchdb_client)
-    # await opensearchdb_client.close()
 
 
 @pytest.fixture
