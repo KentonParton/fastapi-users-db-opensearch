@@ -29,6 +29,7 @@ jobs:
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       run: |
+        sleep 10
         pytest --cov=fastapi_users_db_opensearch/
         codecov
     - name: Build and install it on system host
