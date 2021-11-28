@@ -9,7 +9,12 @@ jobs:
     strategy:
       matrix:
         python_version: [3.7, 3.8, 3.9]
-
+    services:
+      opensearch:
+        image: opensearchproject/opensearch:1.0.0
+        ports:
+          - 9200:9200
+          - 9600:9600
     steps:
     - uses: actions/checkout@v1
     - name: Set up Python
