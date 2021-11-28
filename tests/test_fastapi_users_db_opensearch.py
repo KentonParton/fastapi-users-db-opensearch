@@ -3,11 +3,12 @@ from fastapi_users_db_opensearch import OpenSearchUserDatabase
 from tests.conftest import UserDB, UserDBOAuth
 from opensearchpy import AsyncOpenSearch
 import pytest
+import time
 
 
 @pytest.fixture(scope="module")
 async def opensearchdb_client():
-    yield AsyncOpenSearch(
+    client = AsyncOpenSearch(
         hosts=[{'host': "localhost", 'port': "9200"}],
         http_auth=("admin", "admin"),
         use_ssl=True,
@@ -15,6 +16,14 @@ async def opensearchdb_client():
         ssl_assert_hostname=False,
         ssl_show_warn=False,
     )
+    wait_period = time.time() + 60
+
+    while time.time() < wait_period:
+        try:
+            await client.cluster.health(wait_for_status="yellow", request_timeout=10)
+            yield client
+        except Exception:
+            continue
 
 
 async def create_indices(opensearchdb_client: AsyncOpenSearch):
@@ -54,6 +63,7 @@ async def opensearch_user_db_oauth(opensearchdb_client: AsyncOpenSearch) -> Asyn
     await create_indices(opensearchdb_client)
     yield OpenSearchUserDatabase(UserDBOAuth, opensearchdb_client)
     await delete_indices(opensearchdb_client)
+    await opensearchdb_client.close()
 
 
 @pytest.mark.asyncio
