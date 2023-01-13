@@ -1,18 +1,18 @@
 -r requirements.txt
 
 flake8
-pytest
+pytest == 6.2.5
 requests
 isort
-pytest-asyncio
+pytest-asyncio == 0.17.0
 flake8-docstrings
 black
 mypy
-codecov
-pytest-cov
-pytest-mock
-asynctest
+codecov == 2.1.12
+pytest-cov == 4.0.0
+pytest-mock == 3.10.0
+asynctest == 0.13.0
 flit
 bumpversion
-httpx
+httpx == 0.23.3
 asgi_lifespan

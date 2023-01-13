@@ -6,8 +6,8 @@ build-backend = "flit_core.buildapi"
 module = "fastapi_users_db_opensearch"
 dist-name = "fastapi-users-db-opensearch"
 author = "Kenton Parton"
-author-email = "kknoxparton@gmail.com"
-home-page = "https://github.com/fastapi-users/fastapi-users-db-opensearch"
+author-email = "kparton@swiple.io"
+home-page = "https://github.com/KentonParton/fastapi-users-db-opensearch"
 classifiers = [
     "License :: OSI Approved :: MIT License",
     "Development Status :: 5 - Production/Stable",
@@ -22,8 +22,8 @@ classifiers = [
 description-file = "README.md"
 requires-python = ">=3.7"
 requires = [
-    "fastapi-users >= 6.1.2"
+    "fastapi-users >= 9.1.0,<10.0.0"
 ]
 
 [tool.flit.metadata.urls]
-Documentation = "https://fastapi-users.github.io/fastapi-users"
+Documentation = "https://github.com/KentonParton/fastapi-users-db-opensearch"
