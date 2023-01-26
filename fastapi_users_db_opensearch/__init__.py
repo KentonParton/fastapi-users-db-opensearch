@@ -8,7 +8,7 @@ from pydantic import UUID4
 from fastapi_users.db.base import BaseUserDatabase
 from fastapi_users.models import UD
 
-__version__ = "0.0.1"
+__version__ = "0.0.3"
 
 
 class OpenSearchUserDatabase(BaseUserDatabase[UD]):
