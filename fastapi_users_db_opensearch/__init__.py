@@ -2,13 +2,12 @@
 from typing import Optional, Type
 
 import opensearchpy.exceptions
+from fastapi_users.db.base import BaseUserDatabase
+from fastapi_users.models import UD
 from opensearchpy import AsyncOpenSearch
 from pydantic import UUID4
 
-from fastapi_users.db.base import BaseUserDatabase
-from fastapi_users.models import UD
-
-__version__ = "0.0.1"
+__version__ = "0.0.2"
 
 
 class OpenSearchUserDatabase(BaseUserDatabase[UD]):
@@ -41,7 +40,7 @@ class OpenSearchUserDatabase(BaseUserDatabase[UD]):
         """Get a single user by email."""
         response = await self.client.search(
             index=self.user_index,
-            body={"query": {"match": {"email.keyword": email.lower()}}}
+            body={"query": {"match": {"email.keyword": email.lower()}}},
         )
         hits = response["hits"]["hits"]
         if not hits:
@@ -61,14 +60,22 @@ class OpenSearchUserDatabase(BaseUserDatabase[UD]):
                         "query": {
                             "bool": {
                                 "must": [
-                                    {"match": {"oauth_accounts.oauth_name.keyword": oauth}},
-                                    {"match": {"oauth_accounts.account_id.keyword": account_id}}
+                                    {
+                                        "match": {
+                                            "oauth_accounts.oauth_name.keyword": oauth
+                                        }
+                                    },
+                                    {
+                                        "match": {
+                                            "oauth_accounts.account_id.keyword": account_id
+                                        }
+                                    },
                                 ]
                             }
-                        }
+                        },
                     }
                 }
-            }
+            },
         )
         hits = response["hits"]["hits"]
         if not hits:
@@ -103,10 +110,11 @@ class OpenSearchUserDatabase(BaseUserDatabase[UD]):
         await self.client.update(
             index=self.user_index,
             id=user_id,
-            body={"doc": user_dict}
+            body={"doc": user_dict},
+            refresh="wait_for",
         )
         return user
 
     async def delete(self, user: UD) -> None:
         """Delete a user."""
-        await self.client.delete(index=self.user_index, id=user.id)
+        await self.client.delete(index=self.user_index, id=user.id, refresh="wait_for")
