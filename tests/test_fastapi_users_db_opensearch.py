@@ -1,15 +1,17 @@
+import time
 from typing import AsyncGenerator
+
+import pytest
+from opensearchpy import AsyncOpenSearch
+
 from fastapi_users_db_opensearch import OpenSearchUserDatabase
 from tests.conftest import UserDB, UserDBOAuth
-from opensearchpy import AsyncOpenSearch
-import pytest
-import time
 
 
 @pytest.fixture(scope="module")
 async def opensearchdb_client():
     client = AsyncOpenSearch(
-        hosts=[{'host': "localhost", 'port': "9200"}],
+        hosts=[{"host": "localhost", "port": "9200"}],
         http_auth=("admin", "admin"),
         use_ssl=True,
         verify_certs=False,
@@ -32,15 +34,7 @@ async def create_indices(opensearchdb_client: AsyncOpenSearch):
     if not await opensearchdb_client.indices.exists(user_index):
         await opensearchdb_client.indices.create(
             index=user_index,
-            body={
-                "mappings": {
-                    "properties": {
-                        "oauth_accounts": {
-                            "type": "nested"
-                        }
-                    }
-                }
-            }
+            body={"mappings": {"properties": {"oauth_accounts": {"type": "nested"}}}},
         )
 
 
@@ -52,14 +46,18 @@ async def delete_indices(opensearchdb_client: AsyncOpenSearch):
 
 
 @pytest.fixture
-async def opensearch_user_db(opensearchdb_client: AsyncOpenSearch) -> AsyncGenerator[OpenSearchUserDatabase, None]:
+async def opensearch_user_db(
+    opensearchdb_client: AsyncOpenSearch,
+) -> AsyncGenerator[OpenSearchUserDatabase, None]:
     await create_indices(opensearchdb_client)
     yield OpenSearchUserDatabase(UserDB, opensearchdb_client)
     await delete_indices(opensearchdb_client)
 
 
 @pytest.fixture
-async def opensearch_user_db_oauth(opensearchdb_client: AsyncOpenSearch) -> AsyncGenerator[OpenSearchUserDatabase, None]:
+async def opensearch_user_db_oauth(
+    opensearchdb_client: AsyncOpenSearch,
+) -> AsyncGenerator[OpenSearchUserDatabase, None]:
     await create_indices(opensearchdb_client)
     yield OpenSearchUserDatabase(UserDBOAuth, opensearchdb_client)
     await delete_indices(opensearchdb_client)
@@ -123,7 +121,9 @@ async def test_queries(opensearch_user_db: OpenSearchUserDatabase[UserDB]):
 
 @pytest.mark.asyncio
 @pytest.mark.db
-async def test_queries_custom_fields(opensearch_user_db: OpenSearchUserDatabase[UserDB]):
+async def test_queries_custom_fields(
+    opensearch_user_db: OpenSearchUserDatabase[UserDB],
+):
     """It should output custom fields in query result."""
     user = UserDB(
         email="lancelot@camelot.bt",
@@ -181,5 +181,7 @@ async def test_queries_oauth(
     assert oauth_user.id == user.id
 
     # Unknown OAuth account
-    unknown_oauth_user = await opensearch_user_db_oauth.get_by_oauth_account("foo", "bar")
+    unknown_oauth_user = await opensearch_user_db_oauth.get_by_oauth_account(
+        "foo", "bar"
+    )
     assert unknown_oauth_user is None
