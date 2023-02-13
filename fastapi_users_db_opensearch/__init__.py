@@ -8,7 +8,7 @@ from opensearchpy import AsyncOpenSearch
 from pydantic import UUID4
 
 
-__version__ = "0.0.3"
+__version__ = "0.0.4"
 
 
 class OpenSearchUserDatabase(BaseUserDatabase[UD]):
@@ -22,10 +22,11 @@ class OpenSearchUserDatabase(BaseUserDatabase[UD]):
         self,
         user_db_model: Type[UD],
         client: AsyncOpenSearch,
+        user_index: str = "user",
     ):
         super().__init__(user_db_model)
         self.client = client
-        self.user_index = "user"
+        self.user_index = user_index
 
     async def get(self, id: UUID4) -> Optional[UD]:
         """Get a single user by id."""
